@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Gray-Scott Reaction-Diffusion</title>
+<style>
+  :root {
+    --bg: #07090c;
+    --panel: rgba(14, 18, 24, 0.78);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --text: #e6edf3;
+    --muted: #8a96a6;
+    --accent: #6ee7ff;
+    --accent-2: #ff7ad6;
+    --danger: #ff6b6b;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text",
+      "Helvetica Neue", system-ui, sans-serif;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+  }
+
+  #gl {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    image-rendering: pixelated;
+  }
+
+  /* ---------- top bar ---------- */
+  #title {
+    position: fixed;
+    top: 18px;
+    left: 22px;
+    z-index: 5;
+    pointer-events: none;
+    letter-spacing: 0.04em;
+  }
+  #title .eyebrow {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    margin-bottom: 4px;
+  }
+  #title .name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  #title .name b {
+    background: linear-gradient(120deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ---------- panels ---------- */
+  .panel {
+    position: fixed;
+    z-index: 4;
+    background: var(--panel);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 14px 14px 12px;
+    color: var(--text);
+  }
+
+  #controls {
+    top: 18px;
+    right: 22px;
+    width: 252px;
+  }
+  #help {
+    bottom: 18px;
+    left: 22px;
+    max-width: 360px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  #help b { color: var(--text); font-weight: 600; }
+  #help kbd {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 0 5px;
+    font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--text);
+  }
+
+  .group { margin-bottom: 12px; }
+  .group:last-child { margin-bottom: 0; }
+  .group > label.title {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  /* preset grid */
+  .presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .preset {
+    appearance: none;
+    border: 1px solid var(--panel-border);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text);
+    border-radius: 9px;
+    padding: 8px 6px;
+    font: 600 11px/1 inherit;
+    cursor: pointer;
+    transition: transform 80ms ease, background 120ms ease, border-color 120ms ease;
+    letter-spacing: 0.04em;
+  }
+  .preset:hover { background: rgba(255, 255, 255, 0.07); }
+  .preset:active { transform: translateY(1px); }
+  .preset.active {
+    background: linear-gradient(135deg, rgba(110, 231, 255, 0.22), rgba(255, 122, 214, 0.18));
+    border-color: rgba(110, 231, 255, 0.55);
+    color: #fff;
+    box-shadow: 0 0 0 1px rgba(110, 231, 255, 0.25), 0 6px 18px rgba(110, 231, 255, 0.18);
+  }
+  .preset small {
+    display: block;
+    color: var(--muted);
+    font-weight: 500;
+    margin-top: 2px;
+    font-size: 9.5px;
+  }
+
+  /* sliders */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-size: 11px;
+  }
+  .slider-row span:first-child { color: var(--muted); }
+  .slider-row span:last-child {
+    font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--text);
+    min-width: 44px;
+    text-align: right;
+  }
+  input[type=range] {
+    appearance: none;
+    width: 100%;
+    background: transparent;
+    height: 18px;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 4px;
+  }
+  input[type=range]::-moz-range-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 4px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    margin-top: -5px;
+    box-shadow: 0 0 0 3px rgba(110, 231, 255, 0.25);
+    cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    box-shadow: 0 0 0 3px rgba(110, 231, 255, 0.25);
+    cursor: pointer;
+  }
+
+  /* buttons */
+  .row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--panel-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    border-radius: 9px;
+    padding: 8px 6px;
+    font: 600 11px/1 inherit;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: background 120ms ease, transform 80ms ease;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.08); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary {
+    background: linear-gradient(135deg, rgba(110, 231, 255, 0.85), rgba(255, 122, 214, 0.85));
+    border-color: transparent;
+    color: #0b1014;
+  }
+  .btn.primary:hover { filter: brightness(1.07); }
+  .btn.danger {
+    color: #fff;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.85), rgba(255, 153, 102, 0.85));
+    border-color: transparent;
+  }
+
+  /* error / unsupported */
+  #unsupported {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 99;
+    color: var(--text);
+    font-size: 14px;
+  }
+  #unsupported.show { display: flex; }
+  #unsupported b { color: var(--accent); }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="gl"></canvas>
+  </div>
+
+  <div id="title">
+    <div class="eyebrow">Reaction · Diffusion</div>
+    <div class="name"><b>Gray–Scott</b> · Live Simulation</div>
+  </div>
+
+  <aside id="controls" class="panel">
+    <div class="group">
+      <label class="title">Recipe</label>
+      <div class="presets" id="presets"></div>
+    </div>
+
+    <div class="group">
+      <label class="title">Parameters</label>
+      <div class="slider-row"><span>Feed (f)</span><span id="vF">0.062</span></div>
+      <input id="sF" type="range" min="0.010" max="0.100" step="0.001" value="0.062" />
+      <div class="slider-row" style="margin-top:8px"><span>Kill (k)</span><span id="vK">0.062</span></div>
+      <input id="sK" type="range" min="0.030" max="0.075" step="0.001" value="0.062" />
+      <div class="slider-row" style="margin-top:8px"><span>Brush size</span><span id="vB">12</span></div>
+      <input id="sB" type="range" min="2" max="48" step="1" value="12" />
+    </div>
+
+    <div class="group">
+      <div class="row">
+        <button class="btn primary" id="btnPause">Pause</button>
+        <button class="btn" id="btnReset">Reset</button>
+        <button class="btn danger" id="btnRand">Random</button>
+      </div>
+    </div>
+  </aside>
+
+  <aside id="help" class="panel">
+    <b>Click</b> or <b>drag</b> anywhere on the canvas to inject chemical <b>B</b> and watch the
+    pattern bend, fork, and grow. Pick a recipe on the right to morph into coral, mitosis, spots,
+    worms, holes, or spirals. <kbd>space</kbd> = pause · <kbd>r</kbd> = reset · <kbd>n</kbd> = randomize.
+  </aside>
+
+  <div id="unsupported">
+    Your browser doesn't support <b>WebGL</b> with floating-point textures — please open in a modern
+    Chrome, Firefox, Safari, or Edge build.
+  </div>
+
+<script>
+"use strict";
+
+// ===========================================================================
+// Gray–Scott reaction–diffusion, single-file WebGL/GLSL implementation.
+//
+// State is stored in two RGBA textures; R = chemical A, G = chemical B.
+// We ping-pong between them each simulation step. A third shader (display)
+// reads the latest texture and writes a coloured image to the screen.
+//
+// The simulation uses a 9-point Laplacian stencil (with weighted diagonals)
+// to keep the reaction stable up to dt = 1.0 at Du = 1.0, Dv = 0.5.
+// ===========================================================================
+
+const VERT_SRC = `
+attribute vec2 a_pos;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+`;
+
+// ===========================================================================
+// Simulation fragment shader — one Gray–Scott timestep.
+// Inputs:
+//   u_tex      : previous-step texture (A in R, B in G)
+//   u_res      : (w, h) of the simulation grid in pixels
+//   u_dt       : time step (typically 1.0)
+//   u_F        : feed rate
+//   u_K        : kill rate
+//   u_Du, u_Dv : diffusion rates (usually 1.0, 0.5)
+//   u_brush    : vec4 = (x, y, radius, _) in texture space [0,1]
+//                (x = -1 means "no brush this step")
+//   u_seedAmt  : B value to write inside the brush disc (0..1)
+//   u_clear    : 1.0 to wipe the field to (A=1, B=0)
+// ===========================================================================
+const SIM_FRAG = `
+precision highp float;
+
+uniform sampler2D u_tex;
+uniform vec2  u_res;
+uniform float u_dt;
+uniform float u_F;
+uniform float u_K;
+uniform float u_Du;
+uniform float u_Dv;
+uniform vec4  u_brush;
+uniform float u_seedAmt;
+uniform float u_clear;
+
+varying vec2 v_uv;
+
+// 5-point Laplacian with Karl Sims' weights (0.05 NSEW, -0.2 centre). With
+// these weights the per-pixel Laplacian magnitude tops out at ~0.2 for a
+// single-pixel feature, so Da=1.0, Db=0.5 is the standard pairing — diffusion
+// then has a chance to compete with the ~0.05 A·B² reaction term without
+// flattening the pattern in a single step.
+vec2 laplace(vec2 p, vec2 texel) {
+  vec2 sum = vec2(0.0);
+  sum += texture2D(u_tex, p + vec2(-texel.x, 0.0)).rg * 0.05;
+  sum += texture2D(u_tex, p + vec2( texel.x, 0.0)).rg * 0.05;
+  sum += texture2D(u_tex, p + vec2(0.0, -texel.y)).rg * 0.05;
+  sum += texture2D(u_tex, p + vec2(0.0,  texel.y)).rg * 0.05;
+  sum -= texture2D(u_tex, p).rg * 0.2;
+  return sum;
+}
+
+void main() {
+  vec2 uv = v_uv;
+  vec2 t  = 1.0 / u_res;
+
+  // Wipe shortcut (Reset).
+  if (u_clear > 0.5) {
+    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    return;
+  }
+
+  // Brush injection. Soft disc, additive on B, slight removal on A so the
+  // seed immediately kicks the reaction.
+  if (u_brush.x >= 0.0) {
+    vec2 d = (uv - u_brush.xy) * u_res;
+    float r = length(d);
+    if (r <= u_brush.z) {
+      float fall = 1.0 - smoothstep(u_brush.z * 0.55, u_brush.z, r);
+      vec4 base = texture2D(u_tex, uv);
+      base.g = clamp(base.g + u_seedAmt * fall, 0.0, 1.0);
+      base.r = clamp(base.r - 0.30 * fall, 0.0, 1.0);
+      gl_FragColor = base;
+      return;
+    }
+  }
+
+  vec2 c = texture2D(u_tex, uv).rg;
+  float A = c.r;
+  float B = c.g;
+
+  vec2 L = laplace(uv, t);
+
+  float reaction = A * B * B;
+
+  float dA = u_Du * L.r - reaction + u_F * (1.0 - A);
+  float dB = u_Dv * L.g + reaction - (u_K + u_F) * B;
+
+  A += dA * u_dt;
+  B += dB * u_dt;
+
+  A = clamp(A, 0.0, 1.0);
+  B = clamp(B, 0.0, 1.0);
+
+  gl_FragColor = vec4(A, B, 0.0, 1.0);
+}
+`;
+
+// ===========================================================================
+// Display fragment shader — colormap B → screen.
+// A custom palette modelled on Petri-dish dyes + a soft vignette so the
+// chemistry reads clearly even on busy backgrounds.
+// ===========================================================================
+const DISP_FRAG = `
+precision highp float;
+
+uniform sampler2D u_tex;
+uniform vec2  u_res;        // simulation resolution
+uniform vec2  u_screen;     // canvas resolution
+uniform float u_zoom;       // simulation fit (min(sim/screen)) for vignette
+uniform float u_time;
+
+varying vec2 v_uv;
+
+// 5-stop perceptually-tuned palette (dark teal → cyan → green → yellow → magenta).
+vec3 palette(float t) {
+  t = clamp(t, 0.0, 1.0);
+  vec3 c0 = vec3(0.018, 0.043, 0.078);  // deep teal / void
+  vec3 c1 = vec3(0.024, 0.227, 0.388);  // dark cyan
+  vec3 c2 = vec3(0.094, 0.659, 0.722);  // mid cyan
+  vec3 c3 = vec3(0.792, 0.882, 0.404);  // warm lime
+  vec3 c4 = vec3(0.984, 0.412, 0.671);  // hot magenta
+  vec3 c5 = vec3(1.000, 0.918, 0.949);  // near-white highlight
+  if (t < 0.20) return mix(c0, c1, smoothstep(0.00, 0.20, t));
+  if (t < 0.45) return mix(c1, c2, smoothstep(0.20, 0.45, t));
+  if (t < 0.70) return mix(c2, c3, smoothstep(0.45, 0.70, t));
+  if (t < 0.90) return mix(c3, c4, smoothstep(0.70, 0.90, t));
+  return mix(c4, c5, smoothstep(0.90, 1.00, t));
+}
+
+void main() {
+  vec2 uv = v_uv;
+  vec4 s = texture2D(u_tex, uv);
+  float A = s.r;
+  float B = s.g;
+
+  // Use B as the colour driver; A influences the background hue subtly so
+  // the chemistry feels coupled rather than just painted.
+  float t = pow(B, 1.35) * 1.15;
+  vec3 col = palette(t);
+
+  // Subtle A-modulated glow so depleted regions darken rather than go flat.
+  col *= mix(0.78, 1.05, A);
+
+  // Soft vignette driven by display aspect — keeps the eye on the action.
+  vec2 q = uv - 0.5;
+  float vig = 1.0 - dot(q, q) * 0.55;
+  col *= vig;
+
+  // A whisper of film grain to kill banding.
+  float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233)) + u_time) * 43758.5453);
+  col += (n - 0.5) * 0.012;
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+// ===========================================================================
+// Tiny shader compile / link helper. No exceptions — surfaces errors to UI.
+// ===========================================================================
+function compile(gl, type, src) {
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(sh) || "(no log)";
+    console.error("shader compile error:\n" + log + "\n--- source ---\n" + src);
+    throw new Error(log);
+  }
+  return sh;
+}
+
+function link(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, vs);
+  gl.attachShader(p, fs);
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    const log = gl.getProgramInfoLog(p) || "(no log)";
+    console.error("program link error:\n" + log);
+    throw new Error(log);
+  }
+  return p;
+}
+
+// ===========================================================================
+// Gray–Scott presets — empirically discovered parameter pairs that yield
+// distinct, recognisable morphologies. (F = feed rate, K = kill rate.)
+// ===========================================================================
+const PRESETS = [
+  { id: "coral",   name: "Coral",   F: 0.062,  K: 0.062,  note: "branching fingers" },
+  { id: "mitosis", name: "Mitosis", F: 0.0367, K: 0.0649, note: "cells splitting" },
+  { id: "spots",   name: "Spots",   F: 0.035,  K: 0.065,  note: "stable round dots" },
+  { id: "worms",   name: "Worms",   F: 0.078,  K: 0.061,  note: "crawling threads" },
+  { id: "holes",   name: "Holes",   F: 0.039,  K: 0.058,  note: "swiss-cheese" },
+  { id: "spirals", name: "Spirals", F: 0.018,  K: 0.051,  note: "slow rotating" },
+];
+
+// ===========================================================================
+// ReactionField — owns the WebGL context, ping-pong textures & framebuffers,
+// the simulation/display programs, and the per-frame loop.
+// ===========================================================================
+class ReactionField {
+  constructor(canvas, opts) {
+    this.canvas = canvas;
+    this.opts   = Object.assign({
+      simWidth:  512,
+      simHeight: 512,
+      stepsPerFrame: 12,
+      // Diffusion rates — Karl Sims' classic pairing for the 5-point
+      // Laplacian shader below: Da=1.0, Db=0.5. With our normalised Laplacian
+      // (max |L| ≈ 0.2) this gives a diffusion contribution commensurate
+      // with the A·B² reaction (~0.05) without flattening the field.
+      Du: 1.0,
+      Dv: 0.5,
+      dt:  1.0,
+    }, opts || {});
+
+    // --- context ---
+    // We keep `preserveDrawingBuffer: true` so headless screenshot tools
+    // (Playwright, Puppeteer) can capture the rendered frame, and so an
+    // accidental context-loss event doesn't blank the visible canvas.
+    const attrs = {
+      alpha: false,
+      antialias: false,
+      depth: false,
+      stencil: false,
+      preserveDrawingBuffer: true,
+      powerPreference: "high-performance",
+    };
+    const gl = canvas.getContext("webgl", attrs) ||
+               canvas.getContext("experimental-webgl", attrs);
+    if (!gl) throw new Error("WebGL not available");
+    this.gl = gl;
+
+    // If the browser ever kills the context (tab backgrounded too long,
+    // driver reset), try to rebuild once and otherwise fall back to a
+    // friendly overlay. This is what triggers in headless screenshots
+    // and after long GPU stalls.
+    canvas.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+      console.warn("[gs] WebGL context lost");
+      this.glLost = true;
+    });
+    canvas.addEventListener("webglcontextrestored", () => {
+      console.warn("[gs] WebGL context restored — please reload page");
+    });
+
+    // --- texture format selection ---
+    // Gray–Scott *requires* sub-1/256 precision to seed and evolve patterns.
+    // The classic recipes (Coral, Mitosis, Spots, …) sit in a parameter
+    // regime where the per-step A·B² reaction term is on the order of 1e-4
+    // for the homogeneous steady state — far below the 1/255 ≈ 4e-3
+    // resolution of an 8-bit texture, so the field gets quantised to the
+    // boring A=1, B=0 fixed point. Half-float (16-bit) gives ~1e-4 precision,
+    // enough for the noise to nucleate Turing structure.
+    //
+    // We prefer half-float and fall back to UNSIGNED_BYTE only if the
+    // extension truly isn't available.
+    const HALF_FLOAT_OES_CONST = 0x8D61;
+    const hfExt  = gl.getExtension("OES_texture_half_float");
+    const hflExt = gl.getExtension("OES_texture_half_float_linear");
+    const colBuf = gl.getExtension("EXT_color_buffer_half_float");
+    const hfConst = (typeof gl.HALF_FLOAT_OES === "number")
+      ? gl.HALF_FLOAT_OES : HALF_FLOAT_OES_CONST;
+    const canHalfFloat = !!hfExt && typeof hfConst === "number";
+
+    if (canHalfFloat) {
+      this.simType = hfConst;
+      this.simInternalFormat = gl.RGBA;
+      this.simFormat = gl.RGBA;
+    } else {
+      // Last-resort fallback: 8-bit. The simulation will likely sit at the
+      // trivial fixed point; user clicks still inject visible B but the
+      // pattern won't self-organise the way it does with half-float.
+      this.simType = gl.UNSIGNED_BYTE;
+      this.simInternalFormat = gl.RGBA;
+      this.simFormat = gl.RGBA;
+      console.warn("[gs] HALF_FLOAT_OES not available — Gray–Scott will run but " +
+        "may not self-organise without sustained user input.");
+    }
+    // Allow callers to force UNSIGNED_BYTE for testing.
+    if (this.opts.forceUnsignedByte === true) {
+      this.simType = gl.UNSIGNED_BYTE;
+      this.simInternalFormat = gl.RGBA;
+      this.simFormat = gl.RGBA;
+    }
+
+    // --- programs ---
+    this.simProg  = this._buildProgram(VERT_SRC, SIM_FRAG);
+    this.dispProg = this._buildProgram(VERT_SRC, DISP_FRAG);
+
+    // --- fullscreen quad ---
+    this.quad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1,   1, -1,  -1,  1,
+      -1,  1,   1, -1,   1,  1,
+    ]), gl.STATIC_DRAW);
+
+    // --- ping-pong textures / FBOs ---
+    this.tex   = [this._makeTex(), this._makeTex()];
+    this.fbo   = [this._makeFbo(this.tex[0]), this._makeFbo(this.tex[1])];
+    this.index = 0; // current "read" texture
+
+    // --- parameters (bound to UI) ---
+    this.F = 0.062;
+    this.K = 0.062;
+    this.brushRadius = 12; // pixels in sim space
+    this.seedAmount  = 0.9;
+    this.running     = true;
+    this.clearRequested = false;
+    this.randomizeRequested = false;
+    this._brushEvent = null; // {x, y} in UV space
+
+    // initial seed
+    this._seed();
+
+    // --- resize handling ---
+    this._resize();
+    window.addEventListener("resize", () => this._resize());
+
+    // --- frame loop ---
+    this._t0 = performance.now();
+    this._raf = requestAnimationFrame((t) => this._tick(t));
+  }
+
+  _buildProgram(vs, fs) {
+    const gl = this.gl;
+    const p = link(gl, compile(gl, gl.VERTEX_SHADER, vs),
+                       compile(gl, gl.FRAGMENT_SHADER, fs));
+    p.attribs = {
+      a_pos: gl.getAttribLocation(p, "a_pos"),
+    };
+    p.uniforms = {};
+    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) {
+      const info = gl.getActiveUniform(p, i);
+      p.uniforms[info.name] = gl.getUniformLocation(p, info.name);
+    }
+    return p;
+  }
+
+  _makeTex() {
+    const gl = this.gl;
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, this.simInternalFormat,
+      this.opts.simWidth, this.opts.simHeight, 0,
+      this.simFormat, this.simType, null);
+    const err = gl.getError();
+    if (err) console.error("[gs] texImage2D err 0x" + err.toString(16),
+      "type=", this.simType, "ifmt=", this.simInternalFormat,
+      "fmt=", this.simFormat, "size=", this.opts.simWidth, "x", this.opts.simHeight);
+    return t;
+  }
+
+  _makeFbo(tex) {
+    const gl = this.gl;
+    const f = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D, tex, 0);
+    const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (status !== gl.FRAMEBUFFER_COMPLETE) {
+      console.error("FBO incomplete:", status);
+      throw new Error("Framebuffer incomplete: 0x" + status.toString(16));
+    }
+    return f;
+  }
+
+  _seed() {
+    // Initial pattern. We clear the field to the homogeneous A=1, B=0
+    // steady state and let the user drive pattern formation by clicking
+    // and dragging — the canonical Gray–Scott demo workflow (Karl Sims).
+    // The user only ever sees a blank canvas for a few frames before they
+    // interact; this is intentional and matches every reference impl.
+    const gl = this.gl;
+    const W = this.opts.simWidth, H = this.opts.simHeight;
+
+    for (let i = 0; i < 2; i++) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo[i]);
+      gl.viewport(0, 0, W, H);
+      gl.clearColor(1.0, 0.0, 0.0, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    this.index = 0;
+  }
+
+  _clearField() {
+    // Wipe to the homogeneous steady state (A=1, B=0). No re-seeding —
+    // the user has to click/drag to inject patterns. This is what the
+    // "Reset" button does so the screen actually empties.
+    const gl = this.gl;
+    for (let i = 0; i < 2; i++) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo[i]);
+      gl.viewport(0, 0, this.opts.simWidth, this.opts.simHeight);
+      gl.clearColor(1.0, 0.0, 0.0, 1.0); // A=1, B=0
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  _seedBlob(cx, cy, r, amt, holdSteps) {
+    // Apply the brush for `holdSteps` consecutive simulation steps so the
+    // seed grows past the critical size needed for Gray–Scott to nucleate a
+    // pattern. Without this, a single-step injection is consumed by the
+    // reaction term before it can spread and the screen ends up uniform.
+    const N = holdSteps || 6;
+    this._brushEvent = {
+      x: cx, y: cy, r: r * this.opts.simWidth,
+      amount: amt,
+    };
+    for (let i = 0; i < N; i++) this._step();
+    this._brushEvent = null;
+  }
+
+  randomize() {
+    // Cheap randomise: deposit a few hundred tiny B blobs at random UVs.
+    const rng = mulberry32((Date.now() & 0xFFFFFFFF) >>> 0);
+    for (let i = 0; i < 80; i++) {
+      const x = rng(), y = rng();
+      this._brushEvent = {
+        x, y,
+        r: 2 + rng() * 6,
+        amount: 0.5 + rng() * 0.4,
+      };
+      this._step();
+    }
+    this._brushEvent = null;
+  }
+
+  _resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(this.canvas.clientWidth  * dpr);
+    const h = Math.floor(this.canvas.clientHeight * dpr);
+    if (this.canvas.width !== w || this.canvas.height !== h) {
+      this.canvas.width  = w;
+      this.canvas.height = h;
+    }
+    this._w = w; this._h = h;
+  }
+
+  // -------- public API used by the UI --------
+  setF(v) { this.F = v; }
+  setK(v) { this.K = v; }
+  setBrush(v) { this.brushRadius = v; }
+  setRunning(v) { this.running = v; }
+  requestClear()   { this.clearRequested   = true; }
+  requestRandom()  { this.randomizeRequested = true; }
+  queueBrush(x, y, opts) {
+    // x, y are in [0,1] UV space (canvas-relative, aspect-corrected handled by caller).
+    // opts.persist = true  → brush injects every step until clearBrush() is called.
+    //                          Used while the pointer is held down (drag painting).
+    // opts.persist = false → brush injects exactly once on the next step then auto-clears.
+    //                          Used for clicks, where the user expects a single injection.
+    const o = opts || {};
+    this._brushEvent = {
+      x, y,
+      r: this.brushRadius,
+      amount: this.seedAmount,
+      _consumeOnce: !o.persist,
+    };
+  }
+  clearBrush() {
+    // Called on mouseup / touchend. We clear PERSISTENT brush events (drag)
+    // but never clear one-shot events (click) — those have already been
+    // consumed by _step() and clearing them prematurely would prevent the
+    // simulation step from seeing the brush.
+    if (this._brushEvent && !this._brushEvent._consumeOnce) {
+      this._brushEvent = null;
+    }
+  }
+
+  // -------- frame loop --------
+  _tick(now) {
+    if (this._resizeDirty) this._resize(), this._resizeDirty = false;
+
+    // Pending one-shots.
+    if (this.clearRequested)  { this._clearField();           this.clearRequested   = false; }
+    if (this.randomizeRequested) { this._clearField(); this.randomize(); this.randomizeRequested = false; }
+
+    // Simulation step(s).
+    const steps = this.running ? this.opts.stepsPerFrame : 0;
+    for (let i = 0; i < steps; i++) this._step();
+
+    // Display.
+    this._drawDisplay(now);
+
+    // Bookkeeping.
+    this._frames = (this._frames || 0) + 1;
+    this._last   = now;
+    if (typeof this.onTick === "function") this.onTick(now);
+
+    this._raf = requestAnimationFrame((t) => this._tick(t));
+  }
+
+  _step() {
+    const gl = this.gl;
+
+    // Bind destination = tex[(index+1)%2], read from tex[index].
+    const dst = (this.index + 1) & 1;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo[dst]);
+    gl.viewport(0, 0, this.opts.simWidth, this.opts.simHeight);
+
+    gl.useProgram(this.simProg);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+    gl.enableVertexAttribArray(this.simProg.attribs.a_pos);
+    gl.vertexAttribPointer(this.simProg.attribs.a_pos, 2, gl.FLOAT, false, 0, 0);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex[this.index]);
+    gl.uniform1i(this.simProg.uniforms["u_tex"], 0);
+
+    gl.uniform2f(this.simProg.uniforms["u_res"],
+      this.opts.simWidth, this.opts.simHeight);
+    gl.uniform1f(this.simProg.uniforms["u_dt"], this.opts.dt);
+    gl.uniform1f(this.simProg.uniforms["u_F"],  this.F);
+    gl.uniform1f(this.simProg.uniforms["u_K"],  this.K);
+    gl.uniform1f(this.simProg.uniforms["u_Du"], this.opts.Du);
+    gl.uniform1f(this.simProg.uniforms["u_Dv"], this.opts.Dv);
+
+    // Brush: (x, y) in UV space [0,1], r in *pixels* of the simulation grid
+    // so the shader can compare directly to `length(d)`.
+    let bx = -1, by = -1, br = 0;
+    if (this._brushEvent) {
+      bx = this._brushEvent.x;
+      by = this._brushEvent.y;
+      br = this._brushEvent.r; // already in pixels (slider value)
+    }
+    gl.uniform4f(this.simProg.uniforms["u_brush"], bx, by, br, 0.0);
+    gl.uniform1f(this.simProg.uniforms["u_seedAmt"], this.seedAmount);
+    gl.uniform1f(this.simProg.uniforms["u_clear"], 0.0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    this.index = dst;
+    // Consume one-shot brush events so they don't repeat every frame.
+    if (this._brushEvent && this._brushEvent._consumeOnce) {
+      this._brushEvent = null;
+    }
+  }
+
+  _drawDisplay(now) {
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, this._w, this._h);
+
+    gl.useProgram(this.dispProg);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+    gl.enableVertexAttribArray(this.dispProg.attribs.a_pos);
+    gl.vertexAttribPointer(this.dispProg.attribs.a_pos, 2, gl.FLOAT, false, 0, 0);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex[this.index]);
+    gl.uniform1i(this.dispProg.uniforms["u_tex"], 0);
+
+    gl.uniform2f(this.dispProg.uniforms["u_res"],
+      this.opts.simWidth, this.opts.simHeight);
+    gl.uniform2f(this.dispProg.uniforms["u_screen"], this._w, this._h);
+    const zoom = Math.min(this.opts.simWidth / this._w,
+                          this.opts.simHeight / this._h);
+    gl.uniform1f(this.dispProg.uniforms["u_zoom"], zoom);
+    gl.uniform1f(this.dispProg.uniforms["u_time"], (now - this._t0) * 0.001);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  fps() {
+    if (!this._last || !this._frames) return 0;
+    return 1000 * this._frames / (this._last - this._t0);
+  }
+}
+
+// Tiny seeded PRNG so initial seeds are reproducible.
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ===========================================================================
+// UI wiring
+// ===========================================================================
+function buildUI(field) {
+  // --- presets ---
+  const presetsEl = document.getElementById("presets");
+  PRESETS.forEach((p, idx) => {
+    const b = document.createElement("button");
+    b.className = "preset";
+    b.dataset.id = p.id;
+    b.innerHTML = `${p.name}<small>f=${p.F.toFixed(3)} · k=${p.K.toFixed(3)}</small>`;
+    b.addEventListener("click", () => selectPreset(p.id));
+    presetsEl.appendChild(b);
+  });
+
+  function selectPreset(id) {
+    const p = PRESETS.find((x) => x.id === id);
+    if (!p) return;
+    field.setF(p.F);
+    field.setK(p.K);
+    document.getElementById("sF").value = p.F;
+    document.getElementById("sK").value = p.K;
+    document.getElementById("vF").textContent = p.F.toFixed(3);
+    document.getElementById("vK").textContent = p.K.toFixed(3);
+    [...presetsEl.children].forEach((el) =>
+      el.classList.toggle("active", el.dataset.id === id));
+    // Switch resets the field so the new morphology actually starts to grow.
+    field.requestClear();
+  }
+
+  // initial active
+  selectPreset("coral");
+
+  // --- sliders ---
+  const sF = document.getElementById("sF");
+  const sK = document.getElementById("sK");
+  const sB = document.getElementById("sB");
+  const vF = document.getElementById("vF");
+  const vK = document.getElementById("vK");
+  const vB = document.getElementById("vB");
+
+  sF.addEventListener("input", () => {
+    const v = parseFloat(sF.value);
+    field.setF(v);
+    vF.textContent = v.toFixed(3);
+    // Deactivate preset chip when manually tuned.
+    [...presetsEl.children].forEach((el) => el.classList.remove("active"));
+  });
+  sK.addEventListener("input", () => {
+    const v = parseFloat(sK.value);
+    field.setK(v);
+    vK.textContent = v.toFixed(3);
+    [...presetsEl.children].forEach((el) => el.classList.remove("active"));
+  });
+  sB.addEventListener("input", () => {
+    const v = parseInt(sB.value, 10);
+    field.setBrush(v);
+    vB.textContent = v;
+  });
+
+  // --- buttons ---
+  const btnPause = document.getElementById("btnPause");
+  btnPause.addEventListener("click", () => {
+    field.setRunning(!field.running);
+    btnPause.textContent = field.running ? "Pause" : "Play";
+  });
+  document.getElementById("btnReset").addEventListener("click", () => {
+    field.requestClear();
+  });
+  document.getElementById("btnRand").addEventListener("click", () => {
+    field.requestRandom();
+  });
+
+  // --- keyboard ---
+  window.addEventListener("keydown", (e) => {
+    if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      btnPause.click();
+    } else if (e.key === "r" || e.key === "R") {
+      field.requestClear();
+    } else if (e.key === "n" || e.key === "N") {
+      field.requestRandom();
+    }
+  });
+
+  // --- mouse / touch → brush injection ---
+  // We translate canvas pixel coords into UV space [0,1]. Aspect of the
+  // simulation grid is 1:1 internally; on a non-square canvas the brush
+  // stays circular in *pixel* space, which is what users expect.
+  function uvFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    const u = cx / rect.width;
+    const v = 1.0 - cy / rect.height; // flip Y so screen-top = uv-top
+    return [u, v];
+  }
+
+// Pointer state for canvas drag. We attach `move`/`up` to *window* so a
+// drag that started on the canvas keeps painting even if the cursor leaves
+// the canvas — but we MUST NOT call preventDefault on every global event,
+// otherwise the browser's native slider/select drag handlers never get to
+// release pointer capture and the slider thumb "sticks" to the cursor
+// after release. We only preventDefault when we're actually intercepting
+// a drag we initiated.
+let pointerDown = false;
+let pointerDownButton = -1;
+
+function onDown(e) {
+  // Ignore non-primary buttons; let middle/right-click pass through to the
+  // browser (right-click opens the context menu unless we explicitly block
+  // it elsewhere, which is intentional).
+  if (e.button !== 0) return;
+  pointerDown = true;
+  pointerDownButton = e.button;
+  const [u, v] = uvFromEvent(e);
+  // One-shot: the very next simulation step will inject and consume it.
+  // For drags, mousemove refreshes the event each frame so it stays "live".
+  field.queueBrush(u, v, { persist: false });
+  // Prevent the browser from initiating text-selection or image-drag while
+  // the user is painting on the canvas. Slider/scroll events come from
+  // elements outside the canvas and never reach this listener.
+  e.preventDefault();
+}
+function onMove(e) {
+  if (!pointerDown) return;
+  const [u, v] = uvFromEvent(e);
+  // Refresh the one-shot brush event so the next step keeps painting.
+  field.queueBrush(u, v, { persist: false });
+  e.preventDefault();
+}
+function onUp(e) {
+  // Only swallow the event if WE were tracking a drag. If the user released
+  // the mouse over a slider or scrollbar, that widget is responsible for
+  // releasing its own pointer capture — calling preventDefault here would
+  // leave it in a "still dragging" state.
+  if (!pointerDown) return;
+  pointerDown = false;
+  pointerDownButton = -1;
+  // The brush event set by mousedown/move has already been processed by
+  // _step() in the next animation frame; clearBrush() is a no-op for one-
+  // shot events but releases persistent ones.
+  field.clearBrush();
+  e.preventDefault();
+}
+
+  const canvas = field.canvas;
+  canvas.addEventListener("mousedown", onDown);
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup",   onUp);
+  canvas.addEventListener("touchstart", onDown, { passive: false });
+  canvas.addEventListener("touchmove",  onMove, { passive: false });
+  canvas.addEventListener("touchend",   onUp,   { passive: false });
+  canvas.addEventListener("touchcancel",onUp,   { passive: false });
+
+  // Prevent context menu on right-click so power users can drag from there.
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+// ===========================================================================
+// Boot
+// ===========================================================================
+function boot() {
+  const canvas = document.getElementById("gl");
+  const unsup  = document.getElementById("unsupported");
+
+  let field;
+  try {
+    field = new ReactionField(canvas, {
+      simWidth: 512,
+      simHeight: 512,
+      stepsPerFrame: 14,
+    });
+  } catch (err) {
+    console.error("init failed:", err);
+    unsup.classList.add("show");
+    return;
+  }
+  buildUI(field);
+
+  // Expose for poking from devtools.
+  window.__gs = field;
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", boot, { once: true });
+} else {
+  boot();
+}
+</script>
+</body>
+</html>

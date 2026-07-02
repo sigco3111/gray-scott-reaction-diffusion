@@ -1,0 +1,12 @@
+# OpenCode runtime state (sessions, continuation logs, boulder state).
+/.omo/
+
+# Codegraph local index cache.
+/.codegraph/
+
+# Editor / OS noise.
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
