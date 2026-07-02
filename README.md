@@ -1,5 +1,7 @@
 # Gray-Scott Reaction-Diffusion Visualization
 
+> **Repo:** [github.com/sigco3111/gray-scott-reaction-diffusion](https://github.com/sigco3111/gray-scott-reaction-diffusion) · **Live:** _add Vercel URL here after OpenCode lands index.html_ · **Built with:** [OpenCode](https://github.com/sst/opencode) + **MiniMax M3**
+
 > Real-time WebGL(GLSL) implementation of the **Gray-Scott reaction-diffusion model** — coral / brain-fold / Turing patterns grow organically across the screen, and you can perturb the chemistry with mouse clicks.
 
 ![preview](https://img.shields.io/badge/GLSL-WebGL-ff69b4) ![single--file](https://img.shields.io/badge/single-HTML-blue) ![license](https://img.shields.io/badge/license-MIT-green)
