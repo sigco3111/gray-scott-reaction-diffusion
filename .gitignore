@@ -10,3 +10,4 @@
 *.swo
 .idea/
 .vscode/
+.vercel
