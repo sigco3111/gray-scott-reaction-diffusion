@@ -10,7 +10,7 @@
 
 ## 🎬 라이브 데모 (Live Demo)
 
-> **👉 [https://gray-scott-reaction-diffusion.vercel.app/](https://gray-scott-reaction-diffusion.vercel.app/)** — 브라우저에서 바로 실행 (GPU 가속)
+> **👉 [https://sigco3111.github.io/gray-scott-reaction-diffusion/](https://sigco3111.github.io/gray-scott-reaction-diffusion/)** — 브라우저에서 바로 실행 (GPU 가속)
 
 | | |
 |---|---|
@@ -36,7 +36,7 @@
 | **모델** | MiniMax-M3 |
 | **실행 환경** | OpenCode CLI |
 | **저장소** | [`sigco3111/gray-scott-reaction-diffusion`](https://github.com/sigco3111/gray-scott-reaction-diffusion) |
-| **라이브 데모** | [https://gray-scott-reaction-diffusion.vercel.app/](https://gray-scott-reaction-diffusion.vercel.app/) |
+| **라이브 데모** | [https://sigco3111.github.io/gray-scott-reaction-diffusion/](https://sigco3111.github.io/gray-scott-reaction-diffusion/) |
 | **라이선스** | MIT |
 | **의존성** | 없음 (Vanilla WebGL/GLSL, 단일 HTML) |
 
@@ -72,7 +72,7 @@ the time steps of the chemical reaction. 모든 의존관계의 코드를 하나
 ## 🚀 실행 방법 (Quick Start)
 
 ### 방법 1: 라이브 데모 (가장 간단)
-👉 [https://gray-scott-reaction-diffusion.vercel.app/](https://gray-scott-reaction-diffusion.vercel.app/) — 클릭 한 번
+👉 [https://sigco3111.github.io/gray-scott-reaction-diffusion/](https://sigco3111.github.io/gray-scott-reaction-diffusion/) — 클릭 한 번
 
 ### 방법 2: 그냥 브라우저로 열기
 ```bash
