@@ -14,7 +14,7 @@
 
 | | |
 |---|---|
-| ![Demo](https://img.shields.io/badge/Live-Demo-7C3AED?style=for-the-badge&logo=vercel&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Fgray--scott--reaction--diffusion-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/gray-scott-reaction-diffusion) |
+| ![Demo](https://img.shields.io/badge/Live-Demo-222222?style=for-the-badge&logo=githubpages&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Fgray--scott--reaction--diffusion-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/gray-scott-reaction-diffusion) |
 | ![Status](https://img.shields.io/badge/Status-Live-22C55E?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-WebGL%2FGLSL-5586FF?style=flat-square&logo=webgl&logoColor=white) |
 | ![License](https://img.shields.io/badge/License-MIT-F1C40F?style=flat-square) | ![Deps](https://img.shields.io/badge/Dependencies-0-9CA3AF?style=flat-square) |
 
